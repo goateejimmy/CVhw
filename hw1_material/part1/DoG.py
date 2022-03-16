@@ -15,23 +15,23 @@ class Difference_of_Gaussian(object):
         self.num_DoG_images_per_octave = 4
         self.num_guassian_images_per_octave = self.num_DoG_images_per_octave + 1
     
-    def get3d(up,mid,lower,row,col):
+    def get3d(self,up,mid,lower,row,col):
         newup = up[row-1:row+1,col-1:col+1]
         newmid = mid[row-1:row+1,col-1:col+1]
         newlower = lower[row-1:row+1,col-1:col+1]
         my3d = np.array([newup,newmid,newlower])
         return my3d
         
-    def extremeoccur(Doglist,index):
+    def extremeoccur(self,Doglist,index):
         map = Doglist[index]
         upper = Doglist[index + 1]
         lower = Doglist[index - 1]
         rows,cols  = np.shape(map)
         recordextr = []
-        for row in (1,rows-2):
-            for col in (1,cols-2):
-                if(map[row,col] >threshold):
-                    threeD = Difference_of_Gaussian.get3d(upper,map,lower,row,col)
+        for row in range(1,rows-2):
+            for col in range(1,cols-2):
+                if(map[row,col] >self.threshold):
+                    threeD = self.get3d(upper,map,lower,row,col)
                     if ((np.max(threeD) == map[row,col]) | (np.min(threeD) == map[row,col])):
                         extrbuf = [row,col]
                         recordextr.append(extrbuf)
@@ -59,7 +59,7 @@ class Difference_of_Gaussian(object):
         while count<self.num_guassian_images_per_octave:
             if count == 0:
                 a = gaussian_images[-1]
-                gimage = cv.resize(gaussian_images[-1],fx=0.5,fy=0.5, interpolation=cv.INTER_NEAREST)
+                gimage = cv.resize(gaussian_images[-1],dsize=(int(a.shape[0]/2),int(a.shape[1]/2)), interpolation=cv.INTER_NEAREST)
                 gaussian_images.append(gimage)
                 count = count + 1
             else:
@@ -74,9 +74,9 @@ class Difference_of_Gaussian(object):
         
         dog_images = []
         for i in range(0, self.num_DoG_images_per_octave):
-            dog_images.append(cv.subtract(gaussian_images[i+1]-gaussian_images[i]))
+            dog_images.append(np.abs(cv.subtract(gaussian_images[i+1],gaussian_images[i])))
         for i in range(self.num_guassian_images_per_octave,self.num_guassian_images_per_octave+self.num_DoG_images_per_octave):
-             dog_images.append(cv.subtract(gaussian_images[i+1]-gaussian_images[i]))
+             dog_images.append(np.abs(cv.subtract(gaussian_images[i+1],gaussian_images[i])))
             
 
         # Step 3: Thresholding the value and Find local extremum (local maximun and local minimum)
@@ -94,11 +94,9 @@ class Difference_of_Gaussian(object):
 
         # Step 4: Delete duplicate keypoints
         # - Function: np.unique
-        length =0
-        for i in final_extr:
-            length = length + i.shape[0] #for resize to an lenght*2 array
-        initkey = np.array(final_extr)
-        initkey.resize(length,2)
+        initkey = np.array([[0,0]])
+        for pic in final_extr:
+            initkey = np.concatenate((initkey,pic))
         keypoints = np.unique(initkey,axis=0)
         
 
@@ -108,3 +106,4 @@ class Difference_of_Gaussian(object):
         # sort 2d-point by y, then by x
         keypoints = keypoints[np.lexsort((keypoints[:,1],keypoints[:,0]))] 
         return keypoints
+
